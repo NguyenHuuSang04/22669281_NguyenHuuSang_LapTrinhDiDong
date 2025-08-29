@@ -1,22 +1,22 @@
-class User {
-    name: string;
+export class User {
+    private name: string;
 
-    constructor(name:string){
+    constructor(name: string) {
         this.name = name;
     }
 
-    get getName():string {
+    public getName(): string {
         return this.name;
     }
 
-    set setName(name:string) {
+    public setName(name: string): void {
         this.name = name;
     }
 }
 
 // test
-const u1 = new User("Sang");
-console.log(u1.name); // gọi name bằng getter
+// const u1 = new User("Sang");
+// console.log(u1.getName()); // gọi name bằng getter
 
-u1.name = "Aaa"; //setter đổi giá trị
-console.log(u1.name);
+// u1.setName("Aaa"); //setter đổi giá trị
+// console.log(u1.getName());
