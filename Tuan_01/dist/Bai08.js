@@ -1,10 +1,13 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Product = void 0;
 class Product {
     constructor(name, price) {
         this.name = name;
         this.price = price;
     }
 }
+exports.Product = Product;
 const products = [
     new Product("A", 10),
     new Product("B", 101),
@@ -19,4 +22,4 @@ const products = [
     new Product("L", 106),
 ];
 const proFilter = products.filter(p => p.price > 100);
-console.log(proFilter);
+// console.log(proFilter)
