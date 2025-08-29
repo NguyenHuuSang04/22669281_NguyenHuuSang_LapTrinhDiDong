@@ -9,8 +9,7 @@ class Animal_Bai19 {
     set setName(v) {
         this.name = v;
     }
-    sound() {
-    }
+    sound() { }
 }
 class Dog_Bai19 extends Animal_Bai19 {
     sound() {
