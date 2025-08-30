@@ -7,7 +7,8 @@ function alwaysReject() {
     });
 }
 // test
-alwaysReject().then(result => {
+alwaysReject()
+    .then(result => {
     console.log("Thành công", result);
 })
     .catch(error => {

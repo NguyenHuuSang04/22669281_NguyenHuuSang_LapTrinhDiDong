@@ -8,9 +8,10 @@ function alwaysReject(): Promise<string> {
 }
 
 // test
-alwaysReject().then(result => {
-    console.log("Thành công", result);
-})
+alwaysReject()
+    .then(result => {
+        console.log("Thành công", result);
+    })
     .catch(error => {
         console.error("Thất bại:", error);
     });
