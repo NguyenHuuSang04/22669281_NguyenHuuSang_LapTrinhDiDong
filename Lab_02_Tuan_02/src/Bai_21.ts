@@ -1,4 +1,4 @@
-async function fetchUsersFromAPI(): Promise<any[]> {
+export async function fetchUsersFromAPI(): Promise<any[]> {
     try {
         const respone = await fetch("https://6832d64fc3f2222a8cb3da6f.mockapi.io/api/v1/Users");
 
@@ -13,7 +13,6 @@ async function fetchUsersFromAPI(): Promise<any[]> {
         return [];
     }
 }
-
 async function run_bai_21() {
     console.log("fetching users từ API...");
     const users = await fetchUsersFromAPI();

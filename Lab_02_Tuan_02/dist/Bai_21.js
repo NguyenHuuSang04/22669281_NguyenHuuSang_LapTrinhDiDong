@@ -1,4 +1,6 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.fetchUsersFromAPI = fetchUsersFromAPI;
 async function fetchUsersFromAPI() {
     try {
         const respone = await fetch("https://6832d64fc3f2222a8cb3da6f.mockapi.io/api/v1/Users");
