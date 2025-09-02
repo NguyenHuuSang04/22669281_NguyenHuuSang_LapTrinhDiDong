@@ -7,7 +7,7 @@
     "outDir": "./dist", /* Thư mục chứa các tệp JavaScript đã biên dịch */
     "rootDir": "./src", /* Thư mục gốc chứa tệp TypeScript */
     "skipLibCheck": true, /* Bỏ qua kiểm tra các tệp khai báo thư viện */
-    "lib": ["es2018", "dom"]          /* Thêm lib để hỗ trợ đầy đủ Promise.finally và API trình duyệt */
+    "lib": ["es2020", "dom"]          /* Thêm lib để hỗ trợ đầy đủ Promise.finally và API trình duyệt */
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]
