@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import TransactionItem from '@/components/transaction-item';
 import SearchBar from '@/components/search-bar';
+import SyncSettings from '@/components/sync-settings';
 import { Transaction } from '@/types/transaction';
 import { getAllTransactions, getTransactionSummary, initializeDatabase, searchTransactions } from '@/lib/database';
+import { syncToApi } from '@/lib/api';
 
 export default function HomeScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -18,6 +20,8 @@ export default function HomeScreen() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showSyncSettings, setShowSyncSettings] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Initialize database khi component mount
   useEffect(() => {
@@ -71,6 +75,19 @@ export default function HomeScreen() {
     setSearchTerm('');
   };
 
+  const handleSync = async () => {
+    try {
+      setIsSyncing(true);
+      await syncToApi(allTransactions);
+      Alert.alert('Thành công', 'Đồng bộ dữ liệu thành công!');
+    } catch (error) {
+      console.error('Sync error:', error);
+      Alert.alert('Lỗi', 'Đồng bộ dữ liệu thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const onRefresh = React.useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -107,6 +124,17 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>EXPENSE TRACKER</Text>
+        <TouchableOpacity 
+          style={styles.syncButton} 
+          onPress={() => setShowSyncSettings(true)}
+          disabled={isSyncing}
+        >
+          {isSyncing ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.syncButtonText}>🔄</Text>
+          )}
+        </TouchableOpacity>
       </View>
       
       <SearchBar
@@ -198,6 +226,12 @@ export default function HomeScreen() {
           )}
         </View>
       </ScrollView>
+
+      <SyncSettings
+        visible={showSyncSettings}
+        onClose={() => setShowSyncSettings(false)}
+        onSyncStart={handleSync}
+      />
     </SafeAreaView>
   );
 }
@@ -211,6 +245,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#2196F3',
     paddingVertical: 20,
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
@@ -222,7 +258,20 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+    flex: 1,
     textAlign: 'center',
+  },
+  syncButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  syncButtonText: {
+    fontSize: 18,
+    color: '#fff',
   },
   content: {
     flex: 1,

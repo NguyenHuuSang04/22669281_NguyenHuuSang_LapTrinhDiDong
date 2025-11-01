@@ -8,6 +8,9 @@ export interface Transaction {
     type: TransactionType;
     category?: string;
     description?: string;
+    updatedAt?: Date;
+    deleted?: boolean;
+    deletedAt?: Date;
 }
 
 export interface TransactionSummary {
