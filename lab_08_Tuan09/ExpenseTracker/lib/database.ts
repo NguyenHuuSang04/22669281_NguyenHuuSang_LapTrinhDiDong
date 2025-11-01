@@ -226,6 +226,74 @@ export const deleteTransaction = (id: string): void => {
     }
 };
 
+// Tìm kiếm transactions (chưa bị xóa)
+export const searchTransactions = (searchTerm: string): Transaction[] => {
+    const db = openDatabase();
+
+    const searchQuery = `
+        SELECT * FROM transactions 
+        WHERE deleted = 0 
+        AND (
+            LOWER(title) LIKE LOWER(?) 
+            OR LOWER(category) LIKE LOWER(?) 
+            OR LOWER(description) LIKE LOWER(?)
+        )
+        ORDER BY created_at DESC;
+    `;
+
+    try {
+        const searchPattern = `%${searchTerm}%`;
+        const result = db.getAllSync(searchQuery, [searchPattern, searchPattern, searchPattern]);
+
+        return result.map((row: any) => ({
+            id: row.id,
+            title: row.title,
+            amount: row.amount,
+            createdAt: new Date(row.created_at),
+            type: row.type,
+            category: row.category,
+            description: row.description
+        }));
+    } catch (error) {
+        console.error('Error searching transactions:', error);
+        return [];
+    }
+};
+
+// Tìm kiếm transactions đã bị xóa (trong trash)
+export const searchDeletedTransactions = (searchTerm: string): Transaction[] => {
+    const db = openDatabase();
+
+    const searchQuery = `
+        SELECT * FROM transactions 
+        WHERE deleted = 1 
+        AND (
+            LOWER(title) LIKE LOWER(?) 
+            OR LOWER(category) LIKE LOWER(?) 
+            OR LOWER(description) LIKE LOWER(?)
+        )
+        ORDER BY deleted_at DESC;
+    `;
+
+    try {
+        const searchPattern = `%${searchTerm}%`;
+        const result = db.getAllSync(searchQuery, [searchPattern, searchPattern, searchPattern]);
+
+        return result.map((row: any) => ({
+            id: row.id,
+            title: row.title,
+            amount: row.amount,
+            createdAt: new Date(row.created_at),
+            type: row.type,
+            category: row.category,
+            description: row.description
+        }));
+    } catch (error) {
+        console.error('Error searching deleted transactions:', error);
+        return [];
+    }
+};
+
 // Lấy tổng thu nhập và chi tiêu (chưa bị xóa)
 export const getTransactionSummary = () => {
     const db = openDatabase();

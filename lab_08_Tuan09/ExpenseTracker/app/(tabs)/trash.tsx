@@ -1,9 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import SearchBar from '@/components/search-bar';
 import { Transaction } from '@/types/transaction';
-import { getDeletedTransactions, restoreTransaction, deleteTransaction } from '@/lib/database';
+import { getDeletedTransactions, restoreTransaction, deleteTransaction, searchDeletedTransactions } from '@/lib/database';
 
 interface TrashItemProps {
   transaction: Transaction;
@@ -127,6 +128,8 @@ function TrashItem({ transaction, onRestored, onPermanentlyDeleted }: TrashItemP
 
 export default function TrashScreen() {
   const [deletedTransactions, setDeletedTransactions] = useState<Transaction[]>([]);
+  const [allDeletedTransactions, setAllDeletedTransactions] = useState<Transaction[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Load data khi màn hình được focus
   useFocusEffect(
@@ -138,10 +141,37 @@ export default function TrashScreen() {
   const loadData = () => {
     try {
       const data = getDeletedTransactions();
+      setAllDeletedTransactions(data);
       setDeletedTransactions(data);
     } catch (error) {
       console.error('Error loading deleted transactions:', error);
     }
+  };
+
+  const performSearch = useCallback(() => {
+    try {
+      const searchResults = searchDeletedTransactions(searchTerm);
+      setDeletedTransactions(searchResults);
+    } catch (error) {
+      console.error('Error searching deleted transactions:', error);
+    }
+  }, [searchTerm]);
+
+  // Effect để filter transactions khi search term thay đổi
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setDeletedTransactions(allDeletedTransactions);
+    } else {
+      performSearch();
+    }
+  }, [searchTerm, allDeletedTransactions, performSearch]);
+
+  const handleSearchChange = (text: string) => {
+    setSearchTerm(text);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
   };
 
   const handleClearAll = () => {
@@ -182,12 +212,22 @@ export default function TrashScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Thùng rác</Text>
-        {deletedTransactions.length > 0 && (
+        {allDeletedTransactions.length > 0 && (
           <TouchableOpacity onPress={handleClearAll} style={styles.clearAllButton}>
             <Text style={styles.clearAllText}>Xóa tất cả</Text>
           </TouchableOpacity>
         )}
       </View>
+      
+      {allDeletedTransactions.length > 0 && (
+        <SearchBar
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
+          onClearSearch={handleClearSearch}
+          placeholder="Tìm kiếm trong thùng rác..."
+          backgroundColor="#f5f5f5"
+        />
+      )}
       
       <ScrollView style={styles.content}>
         {deletedTransactions.length > 0 ? (
@@ -204,8 +244,17 @@ export default function TrashScreen() {
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>🗑️</Text>
-            <Text style={styles.emptyText}>Thùng rác trống</Text>
-            <Text style={styles.emptySubText}>Các giao dịch đã xóa sẽ xuất hiện ở đây</Text>
+            {searchTerm ? (
+              <>
+                <Text style={styles.emptyText}>Không tìm thấy kết quả</Text>
+                <Text style={styles.emptySubText}>Thử từ khóa khác hoặc xóa bộ lọc</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyText}>Thùng rác trống</Text>
+                <Text style={styles.emptySubText}>Các giao dịch đã xóa sẽ xuất hiện ở đây</Text>
+              </>
+            )}
           </View>
         )}
       </ScrollView>

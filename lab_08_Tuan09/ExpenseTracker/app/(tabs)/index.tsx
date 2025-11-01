@@ -4,16 +4,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import TransactionItem from '@/components/transaction-item';
+import SearchBar from '@/components/search-bar';
 import { Transaction } from '@/types/transaction';
-import { getAllTransactions, getTransactionSummary, initializeDatabase } from '@/lib/database';
+import { getAllTransactions, getTransactionSummary, initializeDatabase, searchTransactions } from '@/lib/database';
 
 export default function HomeScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({
     totalIncome: 0,
     totalExpense: 0,
     balance: 0
   });
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Initialize database khi component mount
   useEffect(() => {
@@ -28,16 +31,43 @@ export default function HomeScreen() {
     }, [])
   );
 
+  const performSearch = React.useCallback(() => {
+    try {
+      const searchResults = searchTransactions(searchTerm);
+      setTransactions(searchResults);
+    } catch (error) {
+      console.error('Error searching transactions:', error);
+    }
+  }, [searchTerm]);
+
+  // Effect để filter transactions khi search term thay đổi
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setTransactions(allTransactions);
+    } else {
+      performSearch();
+    }
+  }, [searchTerm, allTransactions, performSearch]);
+
   const loadData = () => {
     try {
       const transactionsData = getAllTransactions();
       const summaryData = getTransactionSummary();
       
+      setAllTransactions(transactionsData);
       setTransactions(transactionsData);
       setSummary(summaryData);
     } catch (error) {
       console.error('Error loading data:', error);
     }
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchTerm(text);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
   };
 
   // Format tiền tệ
@@ -57,6 +87,14 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>EXPENSE TRACKER</Text>
       </View>
+      
+      <SearchBar
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+        onClearSearch={handleClearSearch}
+        placeholder="Tìm kiếm giao dịch..."
+        backgroundColor="#f5f5f5"
+      />
       
       <ScrollView style={styles.content}>
         <View style={styles.summaryCard}>
@@ -99,7 +137,9 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.recentTransactions}>
-          <Text style={styles.sectionTitle}>Giao dịch gần đây</Text>
+          <Text style={styles.sectionTitle}>
+            {searchTerm ? `Kết quả tìm kiếm "${searchTerm}"` : 'Giao dịch gần đây'}
+          </Text>
           {transactions.length > 0 ? (
             <View style={styles.transactionsList}>
               {transactions.map((transaction) => (
@@ -112,8 +152,17 @@ export default function HomeScreen() {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Chưa có giao dịch nào</Text>
-              <Text style={styles.emptySubText}>Nhấn nút + để thêm giao dịch đầu tiên</Text>
+              {searchTerm ? (
+                <>
+                  <Text style={styles.emptyText}>Không tìm thấy kết quả</Text>
+                  <Text style={styles.emptySubText}>Thử từ khóa khác hoặc xóa bộ lọc</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emptyText}>Chưa có giao dịch nào</Text>
+                  <Text style={styles.emptySubText}>Nhấn nút + để thêm giao dịch đầu tiên</Text>
+                </>
+              )}
             </View>
           )}
         </View>
