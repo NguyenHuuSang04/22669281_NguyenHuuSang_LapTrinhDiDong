@@ -336,6 +336,126 @@ export const getTransactionSummary = () => {
     }
 };
 
+// Lấy thống kê theo tháng
+export interface MonthlyStats {
+    month: string;
+    year: number;
+    income: number;
+    expense: number;
+    balance: number;
+}
+
+export const getMonthlyStats = (numberOfMonths: number = 6): MonthlyStats[] => {
+    const db = openDatabase();
+
+    try {
+        const stats: MonthlyStats[] = [];
+        const currentDate = new Date();
+
+        for (let i = numberOfMonths - 1; i >= 0; i--) {
+            const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+            const year = targetDate.getFullYear();
+            const month = targetDate.getMonth() + 1; // SQLite months are 1-based
+
+            // Get income for this month
+            const incomeQuery = `
+                SELECT COALESCE(SUM(amount), 0) as total 
+                FROM transactions 
+                WHERE type = 'income' 
+                AND deleted = 0
+                AND strftime('%Y', created_at) = ? 
+                AND strftime('%m', created_at) = ?
+            `;
+
+            // Get expense for this month
+            const expenseQuery = `
+                SELECT COALESCE(SUM(amount), 0) as total 
+                FROM transactions 
+                WHERE type = 'expense' 
+                AND deleted = 0
+                AND strftime('%Y', created_at) = ? 
+                AND strftime('%m', created_at) = ?
+            `;
+
+            const incomeResult = db.getFirstSync(incomeQuery, [year.toString(), month.toString().padStart(2, '0')]);
+            const expenseResult = db.getFirstSync(expenseQuery, [year.toString(), month.toString().padStart(2, '0')]);
+
+            const income = (incomeResult as any)?.total || 0;
+            const expense = (expenseResult as any)?.total || 0;
+
+            stats.push({
+                month: targetDate.toLocaleDateString('vi-VN', { month: 'short' }),
+                year: year,
+                income: income,
+                expense: expense,
+                balance: income - expense
+            });
+        }
+
+        return stats;
+    } catch (error) {
+        console.error('Error getting monthly stats:', error);
+        return [];
+    }
+};
+
+// Lấy thống kê theo năm
+export interface YearlyStats {
+    year: number;
+    income: number;
+    expense: number;
+    balance: number;
+}
+
+export const getYearlyStats = (numberOfYears: number = 3): YearlyStats[] => {
+    const db = openDatabase();
+
+    try {
+        const stats: YearlyStats[] = [];
+        const currentYear = new Date().getFullYear();
+
+        for (let i = numberOfYears - 1; i >= 0; i--) {
+            const year = currentYear - i;
+
+            // Get income for this year
+            const incomeQuery = `
+                SELECT COALESCE(SUM(amount), 0) as total 
+                FROM transactions 
+                WHERE type = 'income' 
+                AND deleted = 0
+                AND strftime('%Y', created_at) = ?
+            `;
+
+            // Get expense for this year
+            const expenseQuery = `
+                SELECT COALESCE(SUM(amount), 0) as total 
+                FROM transactions 
+                WHERE type = 'expense' 
+                AND deleted = 0
+                AND strftime('%Y', created_at) = ?
+            `;
+
+            const incomeResult = db.getFirstSync(incomeQuery, [year.toString()]);
+            const expenseResult = db.getFirstSync(expenseQuery, [year.toString()]);
+
+            const income = (incomeResult as any)?.total || 0;
+            const expense = (expenseResult as any)?.total || 0;
+
+            stats.push({
+                year: year,
+                income: income,
+                expense: expense,
+                balance: income - expense
+            });
+        }
+
+        return stats;
+    } catch (error) {
+        console.error('Error getting yearly stats:', error);
+        return [];
+    }
+};
+
 // Khởi tạo database khi app start
 export const initializeDatabase = () => {
     try {

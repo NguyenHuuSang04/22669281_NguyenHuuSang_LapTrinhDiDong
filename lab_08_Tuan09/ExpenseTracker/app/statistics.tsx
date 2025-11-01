@@ -1,14 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
+  Dimensions,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BarChart, LineChart } from 'react-native-chart-kit';
 import { useFocusEffect } from '@react-navigation/native';
 import { getMonthlyStats, getYearlyStats, MonthlyStats, YearlyStats } from '@/lib/database';
+
+const screenWidth = Dimensions.get('window').width;
 
 type ViewType = 'monthly' | 'yearly';
 
@@ -44,62 +48,86 @@ export default function StatisticsScreen() {
     }).format(amount);
   };
 
-  // Custom Bar Chart Component
-  const SimpleBarChart = ({ data }: { data: (MonthlyStats | YearlyStats)[] }) => {
-    if (data.length === 0) {
-      return (
-        <View style={styles.emptyChart}>
-          <Text style={styles.emptyText}>Chưa có dữ liệu thống kê</Text>
-          <Text style={styles.emptySubText}>Thêm giao dịch để xem biểu đồ</Text>
-        </View>
-      );
+  // Format amount for chart (in millions)
+  const formatChartAmount = (amount: number) => {
+    return Math.round(amount / 1000000); // Convert to millions
+  };
+
+  // Prepare monthly chart data
+  const getMonthlyChartData = () => {
+    if (monthlyStats.length === 0) {
+      return {
+        labels: ['Không có dữ liệu'],
+        datasets: [
+          {
+            data: [0],
+            color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
+          },
+        ],
+      };
     }
 
-    const maxAmount = Math.max(
-      ...data.map(item => Math.max(item.income, item.expense))
-    );
+    return {
+      labels: monthlyStats.map(stat => `${stat.month}`),
+      datasets: [
+        {
+          data: monthlyStats.map(stat => formatChartAmount(stat.income)),
+          color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`, // Green for income
+          strokeWidth: 3,
+        },
+        {
+          data: monthlyStats.map(stat => formatChartAmount(stat.expense)),
+          color: (opacity = 1) => `rgba(244, 67, 54, ${opacity})`, // Red for expense
+          strokeWidth: 3,
+        },
+      ],
+      legend: ['Thu nhập (triệu VNĐ)', 'Chi tiêu (triệu VNĐ)'],
+    };
+  };
 
-    return (
-      <View style={styles.chartContainer}>
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#4CAF50' }]} />
-            <Text style={styles.legendText}>Thu nhập</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#F44336' }]} />
-            <Text style={styles.legendText}>Chi tiêu</Text>
-          </View>
-        </View>
+  // Prepare yearly chart data
+  const getYearlyChartData = () => {
+    if (yearlyStats.length === 0) {
+      return {
+        labels: ['Không có dữ liệu'],
+        datasets: [
+          {
+            data: [0],
+          },
+        ],
+      };
+    }
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
-          <View style={styles.chartContent}>
-            {data.map((item, index) => {
-              const incomeHeight = maxAmount > 0 ? (item.income / maxAmount) * 120 : 0;
-              const expenseHeight = maxAmount > 0 ? (item.expense / maxAmount) * 120 : 0;
+    return {
+      labels: yearlyStats.map(stat => stat.year.toString()),
+      datasets: [
+        {
+          data: yearlyStats.map(stat => formatChartAmount(stat.income)),
+          color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
+        },
+        {
+          data: yearlyStats.map(stat => formatChartAmount(stat.expense)),
+          color: (opacity = 1) => `rgba(244, 67, 54, ${opacity})`,
+        },
+      ],
+      legend: ['Thu nhập (triệu VNĐ)', 'Chi tiêu (triệu VNĐ)'],
+    };
+  };
 
-              return (
-                <View key={index} style={styles.barGroup}>
-                  <View style={styles.barContainer}>
-                    <View style={[styles.bar, styles.incomeBar, { height: incomeHeight }]} />
-                    <View style={[styles.bar, styles.expenseBar, { height: expenseHeight }]} />
-                  </View>
-                  <Text style={styles.barLabel}>
-                    {viewType === 'monthly' ? (item as MonthlyStats).month : (item as YearlyStats).year}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </ScrollView>
-
-        <View style={styles.yAxisLabels}>
-          <Text style={styles.yAxisLabel}>{formatAmount(maxAmount)}</Text>
-          <Text style={styles.yAxisLabel}>{formatAmount(maxAmount / 2)}</Text>
-          <Text style={styles.yAxisLabel}>0đ</Text>
-        </View>
-      </View>
-    );
+  const chartConfig = {
+    backgroundGradientFrom: '#fff',
+    backgroundGradientTo: '#fff',
+    color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
+    strokeWidth: 2,
+    barPercentage: 0.7,
+    useShadowColorFromDataset: false,
+    decimalPlaces: 0,
+    style: {
+      borderRadius: 16,
+    },
+    propsForLabels: {
+      fontSize: 12,
+    },
   };
 
   const currentStats = viewType === 'monthly' ? monthlyStats : yearlyStats;
@@ -130,42 +158,28 @@ export default function StatisticsScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Simple Chart Section */}
-        <View style={styles.chartSection}>
+        {/* Chart Section */}
+        <View style={styles.chartContainer}>
           <Text style={styles.sectionTitle}>
             Biểu đồ thu chi {viewType === 'monthly' ? '6 tháng' : '3 năm'} gần đây
           </Text>
-          <SimpleBarChart data={currentStats} />
-        </View>
-
-        {/* Statistics Summary Cards */}
-        <View style={styles.summaryContainer}>
-          <Text style={styles.sectionTitle}>Tổng quan</Text>
-          {currentStats.length > 0 && (
-            <View style={styles.summaryCards}>
-              <View style={[styles.summaryCard, styles.incomeCard]}>
-                <Text style={styles.summaryCardTitle}>Tổng thu nhập</Text>
-                <Text style={styles.summaryCardAmount}>
-                  {formatAmount(currentStats.reduce((sum, stat) => sum + stat.income, 0))}
-                </Text>
-              </View>
-              <View style={[styles.summaryCard, styles.expenseCard]}>
-                <Text style={styles.summaryCardTitle}>Tổng chi tiêu</Text>
-                <Text style={styles.summaryCardAmount}>
-                  {formatAmount(currentStats.reduce((sum, stat) => sum + stat.expense, 0))}
-                </Text>
-              </View>
-              <View style={[styles.summaryCard, styles.balanceCard]}>
-                <Text style={styles.summaryCardTitle}>Số dư</Text>
-                <Text style={[
-                  styles.summaryCardAmount,
-                  currentStats.reduce((sum, stat) => sum + stat.balance, 0) >= 0 
-                    ? styles.positiveAmount 
-                    : styles.negativeAmount
-                ]}>
-                  {formatAmount(currentStats.reduce((sum, stat) => sum + stat.balance, 0))}
-                </Text>
-              </View>
+          
+          {currentStats.length > 0 ? (
+            <View style={styles.chartWrapper}>
+              <BarChart
+                data={viewType === 'monthly' ? getMonthlyChartData() : getYearlyChartData()}
+                width={screenWidth - 40}
+                height={220}
+                chartConfig={chartConfig}
+                style={styles.chart}
+                showValuesOnTopOfBars={true}
+                fromZero={true}
+              />
+            </View>
+          ) : (
+            <View style={styles.emptyChart}>
+              <Text style={styles.emptyText}>Chưa có dữ liệu thống kê</Text>
+              <Text style={styles.emptySubText}>Thêm giao dịch để xem biểu đồ</Text>
             </View>
           )}
         </View>
@@ -260,7 +274,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  chartSection: {
+  chartContainer: {
     backgroundColor: '#fff',
     margin: 20,
     marginTop: 0,
@@ -273,75 +287,11 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 16,
   },
-  chartContainer: {
-    paddingVertical: 20,
-  },
-  legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 20,
-    gap: 20,
-  },
-  legendItem: {
-    flexDirection: 'row',
+  chartWrapper: {
     alignItems: 'center',
   },
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 6,
-  },
-  legendText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  chartScroll: {
-    marginVertical: 10,
-  },
-  chartContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 140,
-    paddingHorizontal: 10,
-  },
-  barGroup: {
-    alignItems: 'center',
-    marginHorizontal: 8,
-  },
-  barContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 120,
-    gap: 4,
-  },
-  bar: {
-    width: 12,
-    borderRadius: 6,
-    minHeight: 2,
-  },
-  incomeBar: {
-    backgroundColor: '#4CAF50',
-  },
-  expenseBar: {
-    backgroundColor: '#F44336',
-  },
-  barLabel: {
-    fontSize: 10,
-    color: '#666',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  yAxisLabels: {
-    position: 'absolute',
-    left: 0,
-    top: 20,
-    height: 120,
-    justifyContent: 'space-between',
-  },
-  yAxisLabel: {
-    fontSize: 10,
-    color: '#666',
+  chart: {
+    borderRadius: 12,
   },
   emptyChart: {
     alignItems: 'center',
@@ -355,47 +305,6 @@ const styles = StyleSheet.create({
   emptySubText: {
     fontSize: 14,
     color: '#999',
-  },
-  summaryContainer: {
-    backgroundColor: '#fff',
-    margin: 20,
-    marginTop: 0,
-    borderRadius: 12,
-    padding: 20,
-  },
-  summaryCards: {
-    gap: 12,
-  },
-  summaryCard: {
-    padding: 16,
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  incomeCard: {
-    backgroundColor: '#E8F5E8',
-  },
-  expenseCard: {
-    backgroundColor: '#FFEBEE',
-  },
-  balanceCard: {
-    backgroundColor: '#E3F2FD',
-  },
-  summaryCardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  summaryCardAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  positiveAmount: {
-    color: '#4CAF50',
-  },
-  negativeAmount: {
-    color: '#F44336',
   },
   tableContainer: {
     backgroundColor: '#fff',
