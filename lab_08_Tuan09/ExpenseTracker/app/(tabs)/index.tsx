@@ -1,29 +1,92 @@
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import TransactionItem from '@/components/transaction-item';
+import { Transaction } from '@/types/transaction';
 
 export default function HomeScreen() {
+  // Sample data để demo Transaction Items
+  const sampleTransactions: Transaction[] = [
+    {
+      id: '1',
+      title: 'Lương tháng 11',
+      amount: 15000000,
+      createdAt: new Date('2024-11-01T08:00:00'),
+      type: 'income',
+      category: 'Lương'
+    },
+    {
+      id: '2',
+      title: 'Mua sắm siêu thị',
+      amount: 500000,
+      createdAt: new Date('2024-11-01T10:30:00'),
+      type: 'expense',
+      category: 'Thực phẩm'
+    },
+    {
+      id: '3',
+      title: 'Tiền điện tháng 10',
+      amount: 350000,
+      createdAt: new Date('2024-10-31T15:20:00'),
+      type: 'expense',
+      category: 'Hóa đơn'
+    },
+    {
+      id: '4',
+      title: 'Bán đồ cũ',
+      amount: 1200000,
+      createdAt: new Date('2024-10-30T14:15:00'),
+      type: 'income',
+      category: 'Khác'
+    }
+  ];
+
+  // Tính toán tổng thu chi
+  const totalIncome = sampleTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+  
+  const totalExpense = sampleTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+  
+  const balance = totalIncome - totalExpense;
+
+  // Format tiền tệ
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(amount);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>EXPENSE TRACKER</Text>
       </View>
       
-      <View style={styles.content}>
+      <ScrollView style={styles.content}>
         <View style={styles.summaryCard}>
           <Text style={styles.cardTitle}>Tổng quan tài chính</Text>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Thu nhập</Text>
-              <Text style={[styles.summaryValue, styles.incomeText]}>0 đ</Text>
+              <Text style={[styles.summaryValue, styles.incomeText]}>
+                {formatAmount(totalIncome)}
+              </Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Chi tiêu</Text>
-              <Text style={[styles.summaryValue, styles.expenseText]}>0 đ</Text>
+              <Text style={[styles.summaryValue, styles.expenseText]}>
+                {formatAmount(totalExpense)}
+              </Text>
             </View>
           </View>
           <View style={styles.balanceContainer}>
             <Text style={styles.balanceLabel}>Số dư</Text>
-            <Text style={[styles.balanceValue, styles.balanceText]}>0 đ</Text>
+            <Text style={[styles.balanceValue, styles.balanceText]}>
+              {formatAmount(balance)}
+            </Text>
           </View>
         </View>
 
@@ -38,11 +101,22 @@ export default function HomeScreen() {
 
         <View style={styles.recentTransactions}>
           <Text style={styles.sectionTitle}>Giao dịch gần đây</Text>
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Chưa có giao dịch nào</Text>
-          </View>
+          {sampleTransactions.length > 0 ? (
+            <View style={styles.transactionsList}>
+              {sampleTransactions.map((transaction) => (
+                <TransactionItem
+                  key={transaction.id}
+                  transaction={transaction}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>Chưa có giao dịch nào</Text>
+            </View>
+          )}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -164,6 +238,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 15,
+    marginHorizontal: 16,
+  },
+  transactionsList: {
+    paddingBottom: 20,
   },
   emptyState: {
     backgroundColor: '#fff',
@@ -175,6 +253,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 1,
+    marginHorizontal: 16,
   },
   emptyText: {
     color: '#999',
