@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -17,6 +17,7 @@ export default function HomeScreen() {
     balance: 0
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Initialize database khi component mount
   useEffect(() => {
@@ -70,6 +71,26 @@ export default function HomeScreen() {
     setSearchTerm('');
   };
 
+  const onRefresh = React.useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // Simulate network delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Reload data from database
+      loadData();
+      
+      // Clear search if active to show all refreshed data
+      if (searchTerm) {
+        setSearchTerm('');
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [searchTerm]);
+
   // Format tiền tệ
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -96,7 +117,17 @@ export default function HomeScreen() {
         backgroundColor="#f5f5f5"
       />
       
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#FF0000']} // Android color - đỏ đậm
+            tintColor="#FF0000" // iOS color - đỏ đậm
+          />
+        }
+      >
         <View style={styles.summaryCard}>
           <Text style={styles.cardTitle}>Tổng quan tài chính</Text>
           <View style={styles.summaryRow}>

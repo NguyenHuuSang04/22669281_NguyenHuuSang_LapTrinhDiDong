@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import SearchBar from '@/components/search-bar';
@@ -130,6 +130,7 @@ export default function TrashScreen() {
   const [deletedTransactions, setDeletedTransactions] = useState<Transaction[]>([]);
   const [allDeletedTransactions, setAllDeletedTransactions] = useState<Transaction[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Load data khi màn hình được focus
   useFocusEffect(
@@ -147,6 +148,13 @@ export default function TrashScreen() {
       console.error('Error loading deleted transactions:', error);
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Giả lập quá trình refresh
+    loadData();
+    setIsRefreshing(false);
+  }, []);
 
   const performSearch = useCallback(() => {
     try {
@@ -229,7 +237,17 @@ export default function TrashScreen() {
         />
       )}
       
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#FF0000']} // Android color - đỏ đậm
+            tintColor="#FF0000" // iOS color - đỏ đậm
+          />
+        }
+      >
         {deletedTransactions.length > 0 ? (
           <View style={styles.transactionsList}>
             {deletedTransactions.map((transaction) => (
