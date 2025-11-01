@@ -106,6 +106,7 @@ export default function HomeScreen() {
                 <TransactionItem
                   key={transaction.id}
                   transaction={transaction}
+                  onDeleted={loadData}
                 />
               ))}
             </View>

@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Transaction } from '@/types/transaction';
+import { softDeleteTransaction } from '@/lib/database';
 
 interface TransactionItemProps {
   transaction: Transaction;
+  onDeleted?: () => void; // Callback khi item bị xóa để refresh danh sách
 }
 
-export default function TransactionItem({ transaction }: TransactionItemProps) {
+export default function TransactionItem({ transaction, onDeleted }: TransactionItemProps) {
   const { title, amount, createdAt, type } = transaction;
   
   // Format date to Vietnamese format
@@ -35,8 +37,47 @@ export default function TransactionItem({ transaction }: TransactionItemProps) {
     router.push(`/edit-transaction?id=${transaction.id}`);
   };
 
+  const handleLongPress = () => {
+    Alert.alert(
+      'Xóa giao dịch',
+      `Bạn có chắc chắn muốn xóa "${title}"?\nGiao dịch sẽ được chuyển vào thùng rác.`,
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: handleDelete,
+        },
+      ]
+    );
+  };
+
+  const handleDelete = async () => {
+    try {
+      softDeleteTransaction(transaction.id);
+      
+      // Gọi callback để refresh danh sách
+      if (onDeleted) {
+        onDeleted();
+      }
+      
+      Alert.alert('Thành công', 'Giao dịch đã được chuyển vào thùng rác.');
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      Alert.alert('Lỗi', 'Không thể xóa giao dịch. Vui lòng thử lại.');
+    }
+  };
+
   return (
-    <TouchableOpacity style={styles.container} onPress={handlePress}>
+    <TouchableOpacity 
+      style={styles.container} 
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      delayLongPress={500}
+    >
       <View style={styles.leftSection}>
         <View style={[styles.typeIndicator, isIncome ? styles.incomeIndicator : styles.expenseIndicator]}>
           <Text style={[styles.typeIcon, isIncome ? styles.incomeIcon : styles.expenseIcon]}>

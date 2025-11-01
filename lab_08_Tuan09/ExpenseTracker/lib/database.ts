@@ -20,12 +20,28 @@ export const createTransactionTable = () => {
       created_at TEXT NOT NULL,
       type TEXT NOT NULL,
       category TEXT,
-      description TEXT
+      description TEXT,
+      deleted INTEGER DEFAULT 0,
+      deleted_at TEXT
     );
   `;
 
     try {
         db.execSync(createTableQuery);
+
+        // Thêm cột deleted cho database cũ nếu chưa có
+        try {
+            db.execSync('ALTER TABLE transactions ADD COLUMN deleted INTEGER DEFAULT 0');
+        } catch {
+            // Cột đã tồn tại, bỏ qua lỗi
+        }
+
+        try {
+            db.execSync('ALTER TABLE transactions ADD COLUMN deleted_at TEXT');
+        } catch {
+            // Cột đã tồn tại, bỏ qua lỗi
+        }
+
         console.log('Table transactions created successfully');
     } catch (error) {
         console.error('Error creating table:', error);
@@ -61,11 +77,11 @@ export const insertTransaction = (transaction: Omit<Transaction, 'id'>): string 
     }
 };
 
-// Lấy tất cả transactions
+// Lấy tất cả transactions (chưa bị xóa)
 export const getAllTransactions = (): Transaction[] => {
     const db = openDatabase();
 
-    const selectQuery = 'SELECT * FROM transactions ORDER BY created_at DESC;';
+    const selectQuery = 'SELECT * FROM transactions WHERE deleted = 0 ORDER BY created_at DESC;';
 
     try {
         const result = db.getAllSync(selectQuery);
@@ -85,11 +101,11 @@ export const getAllTransactions = (): Transaction[] => {
     }
 };
 
-// Lấy một transaction theo ID
+// Lấy một transaction theo ID (chưa bị xóa)
 export const getTransactionById = (id: string): Transaction | null => {
     const db = openDatabase();
 
-    const selectQuery = 'SELECT * FROM transactions WHERE id = ?;';
+    const selectQuery = 'SELECT * FROM transactions WHERE id = ? AND deleted = 0;';
 
     try {
         const result = db.getFirstSync(selectQuery, [id]) as any;
@@ -141,6 +157,60 @@ export const updateTransaction = (id: string, transaction: Omit<Transaction, 'id
     }
 };
 
+// Soft delete transaction (đánh dấu là đã xóa)
+export const softDeleteTransaction = (id: string): void => {
+    const db = openDatabase();
+
+    const updateQuery = 'UPDATE transactions SET deleted = 1, deleted_at = ? WHERE id = ?;';
+
+    try {
+        db.runSync(updateQuery, [new Date().toISOString(), id]);
+        console.log('Transaction soft deleted successfully');
+    } catch (error) {
+        console.error('Error soft deleting transaction:', error);
+        throw error;
+    }
+};
+
+// Khôi phục transaction từ trash
+export const restoreTransaction = (id: string): void => {
+    const db = openDatabase();
+
+    const updateQuery = 'UPDATE transactions SET deleted = 0, deleted_at = NULL WHERE id = ?;';
+
+    try {
+        db.runSync(updateQuery, [id]);
+        console.log('Transaction restored successfully');
+    } catch (error) {
+        console.error('Error restoring transaction:', error);
+        throw error;
+    }
+};
+
+// Lấy tất cả transactions đã bị xóa (trong trash)
+export const getDeletedTransactions = (): Transaction[] => {
+    const db = openDatabase();
+
+    const selectQuery = 'SELECT * FROM transactions WHERE deleted = 1 ORDER BY deleted_at DESC;';
+
+    try {
+        const result = db.getAllSync(selectQuery);
+
+        return result.map((row: any) => ({
+            id: row.id,
+            title: row.title,
+            amount: row.amount,
+            createdAt: new Date(row.created_at),
+            type: row.type,
+            category: row.category,
+            description: row.description
+        }));
+    } catch (error) {
+        console.error('Error getting deleted transactions:', error);
+        return [];
+    }
+};
+
 // Xóa transaction
 export const deleteTransaction = (id: string): void => {
     const db = openDatabase();
@@ -156,7 +226,7 @@ export const deleteTransaction = (id: string): void => {
     }
 };
 
-// Lấy tổng thu nhập và chi tiêu
+// Lấy tổng thu nhập và chi tiêu (chưa bị xóa)
 export const getTransactionSummary = () => {
     const db = openDatabase();
 
@@ -165,6 +235,7 @@ export const getTransactionSummary = () => {
       type,
       SUM(amount) as total
     FROM transactions 
+    WHERE deleted = 0
     GROUP BY type;
   `;
 
