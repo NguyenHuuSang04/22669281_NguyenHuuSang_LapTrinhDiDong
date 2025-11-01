@@ -85,6 +85,62 @@ export const getAllTransactions = (): Transaction[] => {
     }
 };
 
+// Lấy một transaction theo ID
+export const getTransactionById = (id: string): Transaction | null => {
+    const db = openDatabase();
+
+    const selectQuery = 'SELECT * FROM transactions WHERE id = ?;';
+
+    try {
+        const result = db.getFirstSync(selectQuery, [id]) as any;
+
+        if (!result) {
+            return null;
+        }
+
+        return {
+            id: result.id,
+            title: result.title,
+            amount: result.amount,
+            createdAt: new Date(result.created_at),
+            type: result.type,
+            category: result.category,
+            description: result.description
+        };
+    } catch (error) {
+        console.error('Error getting transaction by id:', error);
+        return null;
+    }
+};
+
+// Cập nhật transaction
+export const updateTransaction = (id: string, transaction: Omit<Transaction, 'id'>): void => {
+    const db = openDatabase();
+
+    const updateQuery = `
+    UPDATE transactions 
+    SET title = ?, amount = ?, created_at = ?, type = ?, category = ?, description = ?
+    WHERE id = ?;
+  `;
+
+    try {
+        db.runSync(updateQuery, [
+            transaction.title,
+            transaction.amount,
+            transaction.createdAt.toISOString(),
+            transaction.type,
+            transaction.category || null,
+            transaction.description || null,
+            id
+        ]);
+
+        console.log('Transaction updated successfully');
+    } catch (error) {
+        console.error('Error updating transaction:', error);
+        throw error;
+    }
+};
+
 // Xóa transaction
 export const deleteTransaction = (id: string): void => {
     const db = openDatabase();

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
 import { Transaction } from '@/types/transaction';
 
 interface TransactionItemProps {
@@ -30,8 +31,12 @@ export default function TransactionItem({ transaction }: TransactionItemProps) {
 
   const isIncome = type === 'income';
 
+  const handlePress = () => {
+    router.push(`/edit-transaction?id=${transaction.id}`);
+  };
+
   return (
-    <View style={styles.container}>
+    <TouchableOpacity style={styles.container} onPress={handlePress}>
       <View style={styles.leftSection}>
         <View style={[styles.typeIndicator, isIncome ? styles.incomeIndicator : styles.expenseIndicator]}>
           <Text style={[styles.typeIcon, isIncome ? styles.incomeIcon : styles.expenseIcon]}>
@@ -52,7 +57,7 @@ export default function TransactionItem({ transaction }: TransactionItemProps) {
           {isIncome ? 'Thu nhập' : 'Chi tiêu'}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
