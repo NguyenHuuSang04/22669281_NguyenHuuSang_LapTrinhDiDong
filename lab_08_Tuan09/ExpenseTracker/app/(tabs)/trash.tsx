@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, RefreshCon
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import SearchBar from '@/components/search-bar';
+import TransactionFilter, { FilterType } from '@/components/transaction-filter';
 import { Transaction } from '@/types/transaction';
 import { getDeletedTransactions, restoreTransaction, deleteTransaction, searchDeletedTransactions } from '@/lib/database';
 
@@ -16,15 +17,15 @@ function TrashItem({ transaction, onRestored, onPermanentlyDeleted }: TrashItemP
   const { id, title, amount, type, createdAt } = transaction;
 
   // Format date to Vietnamese format
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (date: Date | string) => {
+    const dateObj = date instanceof Date ? date : new Date(date);
     return new Intl.DateTimeFormat('vi-VN', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(date);
+    }).format(dateObj);
   };
 
   // Format amount to Vietnamese currency
@@ -131,6 +132,7 @@ export default function TrashScreen() {
   const [allDeletedTransactions, setAllDeletedTransactions] = useState<Transaction[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
 
   // Load data khi màn hình được focus
   useFocusEffect(
@@ -156,23 +158,32 @@ export default function TrashScreen() {
     setIsRefreshing(false);
   }, []);
 
-  const performSearch = useCallback(() => {
-    try {
-      const searchResults = searchDeletedTransactions(searchTerm);
-      setDeletedTransactions(searchResults);
-    } catch (error) {
-      console.error('Error searching deleted transactions:', error);
+  // Filter transactions by type
+  const applyFilter = useCallback((transactionList: Transaction[]) => {
+    if (selectedFilter === 'all') {
+      return transactionList;
     }
-  }, [searchTerm]);
+    return transactionList.filter(transaction => transaction.type === selectedFilter);
+  }, [selectedFilter]);
 
-  // Effect để filter transactions khi search term thay đổi
+  // Handle filter change
+  const handleFilterChange = (filter: FilterType) => {
+    setSelectedFilter(filter);
+  };
+
+  // Effect để filter transactions khi search term hoặc filter thay đổi
   useEffect(() => {
+    let filteredTransactions: Transaction[];
+    
     if (searchTerm.trim() === '') {
-      setDeletedTransactions(allDeletedTransactions);
+      filteredTransactions = applyFilter(allDeletedTransactions);
     } else {
-      performSearch();
+      const searchResults = searchDeletedTransactions(searchTerm);
+      filteredTransactions = applyFilter(searchResults);
     }
-  }, [searchTerm, allDeletedTransactions, performSearch]);
+    
+    setDeletedTransactions(filteredTransactions);
+  }, [searchTerm, allDeletedTransactions, applyFilter]);
 
   const handleSearchChange = (text: string) => {
     setSearchTerm(text);
@@ -228,13 +239,20 @@ export default function TrashScreen() {
       </View>
       
       {allDeletedTransactions.length > 0 && (
-        <SearchBar
-          searchTerm={searchTerm}
-          onSearchChange={handleSearchChange}
-          onClearSearch={handleClearSearch}
-          placeholder="Tìm kiếm trong thùng rác..."
-          backgroundColor="#f5f5f5"
-        />
+        <>
+          <SearchBar
+            searchTerm={searchTerm}
+            onSearchChange={handleSearchChange}
+            onClearSearch={handleClearSearch}
+            placeholder="Tìm kiếm trong thùng rác..."
+            backgroundColor="#f5f5f5"
+          />
+          
+          <TransactionFilter
+            selectedFilter={selectedFilter}
+            onFilterChange={handleFilterChange}
+          />
+        </>
       )}
       
       <ScrollView 

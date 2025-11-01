@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import TransactionItem from '@/components/transaction-item';
 import SearchBar from '@/components/search-bar';
 import SyncSettings from '@/components/sync-settings';
+import TransactionFilter, { FilterType } from '@/components/transaction-filter';
 import { Transaction } from '@/types/transaction';
 import { getAllTransactions, getTransactionSummary, initializeDatabase, searchTransactions } from '@/lib/database';
 import { syncToApi } from '@/lib/api';
@@ -22,6 +23,7 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
 
   // Initialize database khi component mount
   useEffect(() => {
@@ -45,14 +47,32 @@ export default function HomeScreen() {
     }
   }, [searchTerm]);
 
-  // Effect để filter transactions khi search term thay đổi
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setTransactions(allTransactions);
-    } else {
-      performSearch();
+  // Filter transactions by type
+  const applyFilter = React.useCallback((transactionList: Transaction[]) => {
+    if (selectedFilter === 'all') {
+      return transactionList;
     }
-  }, [searchTerm, allTransactions, performSearch]);
+    return transactionList.filter(transaction => transaction.type === selectedFilter);
+  }, [selectedFilter]);
+
+  // Handle filter change
+  const handleFilterChange = (filter: FilterType) => {
+    setSelectedFilter(filter);
+  };
+
+  // Effect để filter transactions khi search term hoặc filter thay đổi
+  useEffect(() => {
+    let filteredTransactions: Transaction[];
+    
+    if (searchTerm.trim() === '') {
+      filteredTransactions = applyFilter(allTransactions);
+    } else {
+      const searchResults = searchTransactions(searchTerm);
+      filteredTransactions = applyFilter(searchResults);
+    }
+    
+    setTransactions(filteredTransactions);
+  }, [searchTerm, allTransactions, applyFilter]);
 
   const loadData = () => {
     try {
@@ -144,6 +164,11 @@ export default function HomeScreen() {
         placeholder="Tìm kiếm giao dịch..."
         backgroundColor="#f5f5f5"
       />
+
+      <TransactionFilter
+        selectedFilter={selectedFilter}
+        onFilterChange={handleFilterChange}
+      />
       
       <ScrollView 
         style={styles.content}
@@ -197,7 +222,13 @@ export default function HomeScreen() {
 
         <View style={styles.recentTransactions}>
           <Text style={styles.sectionTitle}>
-            {searchTerm ? `Kết quả tìm kiếm "${searchTerm}"` : 'Giao dịch gần đây'}
+            {searchTerm 
+              ? `Kết quả tìm kiếm "${searchTerm}"` 
+              : selectedFilter === 'all' 
+                ? 'Giao dịch gần đây'
+                : selectedFilter === 'income'
+                  ? 'Giao dịch thu nhập'
+                  : 'Giao dịch chi tiêu'}
           </Text>
           {transactions.length > 0 ? (
             <View style={styles.transactionsList}>
@@ -214,7 +245,16 @@ export default function HomeScreen() {
               {searchTerm ? (
                 <>
                   <Text style={styles.emptyText}>Không tìm thấy kết quả</Text>
-                  <Text style={styles.emptySubText}>Thử từ khóa khác hoặc xóa bộ lọc</Text>
+                  <Text style={styles.emptySubText}>Thử từ khóa khác hoặc thay đổi bộ lọc</Text>
+                </>
+              ) : selectedFilter !== 'all' ? (
+                <>
+                  <Text style={styles.emptyText}>
+                    {selectedFilter === 'income' ? 'Chưa có giao dịch thu nhập' : 'Chưa có giao dịch chi tiêu'}
+                  </Text>
+                  <Text style={styles.emptySubText}>
+                    {selectedFilter === 'income' ? 'Thêm giao dịch thu nhập đầu tiên' : 'Thêm giao dịch chi tiêu đầu tiên'}
+                  </Text>
                 </>
               ) : (
                 <>
