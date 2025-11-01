@@ -1,55 +1,44 @@
-import { StyleSheet, View, Text, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 import TransactionItem from '@/components/transaction-item';
 import { Transaction } from '@/types/transaction';
+import { getAllTransactions, getTransactionSummary, initializeDatabase } from '@/lib/database';
 
 export default function HomeScreen() {
-  // Sample data để demo Transaction Items
-  const sampleTransactions: Transaction[] = [
-    {
-      id: '1',
-      title: 'Lương tháng 11',
-      amount: 15000000,
-      createdAt: new Date('2024-11-01T08:00:00'),
-      type: 'income',
-      category: 'Lương'
-    },
-    {
-      id: '2',
-      title: 'Mua sắm siêu thị',
-      amount: 500000,
-      createdAt: new Date('2024-11-01T10:30:00'),
-      type: 'expense',
-      category: 'Thực phẩm'
-    },
-    {
-      id: '3',
-      title: 'Tiền điện tháng 10',
-      amount: 350000,
-      createdAt: new Date('2024-10-31T15:20:00'),
-      type: 'expense',
-      category: 'Hóa đơn'
-    },
-    {
-      id: '4',
-      title: 'Bán đồ cũ',
-      amount: 1200000,
-      createdAt: new Date('2024-10-30T14:15:00'),
-      type: 'income',
-      category: 'Khác'
-    }
-  ];
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [summary, setSummary] = useState({
+    totalIncome: 0,
+    totalExpense: 0,
+    balance: 0
+  });
 
-  // Tính toán tổng thu chi
-  const totalIncome = sampleTransactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
-  
-  const totalExpense = sampleTransactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
-  
-  const balance = totalIncome - totalExpense;
+  // Initialize database khi component mount
+  useEffect(() => {
+    initializeDatabase();
+    loadData();
+  }, []);
+
+  // Reload data khi màn hình được focus (sau khi thêm transaction mới)
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  const loadData = () => {
+    try {
+      const transactionsData = getAllTransactions();
+      const summaryData = getTransactionSummary();
+      
+      setTransactions(transactionsData);
+      setSummary(summaryData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+  };
 
   // Format tiền tệ
   const formatAmount = (amount: number) => {
@@ -57,6 +46,10 @@ export default function HomeScreen() {
       style: 'currency',
       currency: 'VND',
     }).format(amount);
+  };
+
+  const handleAddTransaction = (type: 'income' | 'expense') => {
+    router.push('/add-transaction');
   };
 
   return (
@@ -72,38 +65,44 @@ export default function HomeScreen() {
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Thu nhập</Text>
               <Text style={[styles.summaryValue, styles.incomeText]}>
-                {formatAmount(totalIncome)}
+                {formatAmount(summary.totalIncome)}
               </Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Chi tiêu</Text>
               <Text style={[styles.summaryValue, styles.expenseText]}>
-                {formatAmount(totalExpense)}
+                {formatAmount(summary.totalExpense)}
               </Text>
             </View>
           </View>
           <View style={styles.balanceContainer}>
             <Text style={styles.balanceLabel}>Số dư</Text>
             <Text style={[styles.balanceValue, styles.balanceText]}>
-              {formatAmount(balance)}
+              {formatAmount(summary.balance)}
             </Text>
           </View>
         </View>
 
         <View style={styles.actionsContainer}>
-          <View style={styles.actionButton}>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.incomeButton]}
+            onPress={() => handleAddTransaction('income')}
+          >
             <Text style={styles.actionButtonText}>+ Thu nhập</Text>
-          </View>
-          <View style={styles.actionButton}>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.expenseButton]}
+            onPress={() => handleAddTransaction('expense')}
+          >
             <Text style={styles.actionButtonText}>- Chi tiêu</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.recentTransactions}>
           <Text style={styles.sectionTitle}>Giao dịch gần đây</Text>
-          {sampleTransactions.length > 0 ? (
+          {transactions.length > 0 ? (
             <View style={styles.transactionsList}>
-              {sampleTransactions.map((transaction) => (
+              {transactions.map((transaction) => (
                 <TransactionItem
                   key={transaction.id}
                   transaction={transaction}
@@ -113,6 +112,7 @@ export default function HomeScreen() {
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>Chưa có giao dịch nào</Text>
+              <Text style={styles.emptySubText}>Nhấn nút + để thêm giao dịch đầu tiên</Text>
             </View>
           )}
         </View>
@@ -225,6 +225,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
+  incomeButton: {
+    backgroundColor: '#4CAF50',
+  },
+  expenseButton: {
+    backgroundColor: '#F44336',
+  },
   actionButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -259,5 +265,11 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 16,
     fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  emptySubText: {
+    color: '#ccc',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
