@@ -13,10 +13,11 @@ interface TrashItemProps {
 }
 
 function TrashItem({ transaction, onRestored, onPermanentlyDeleted }: TrashItemProps) {
-  const { title, amount, createdAt, type } = transaction;
+  const { id, title, amount, type, createdAt } = transaction;
 
   // Format date to Vietnamese format
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     return new Intl.DateTimeFormat('vi-VN', {
       day: '2-digit',
       month: '2-digit',
@@ -36,10 +37,10 @@ function TrashItem({ transaction, onRestored, onPermanentlyDeleted }: TrashItemP
 
   const isIncome = type === 'income';
 
-  const handleRestore = () => {
+  const handleLongPress = () => {
     Alert.alert(
-      'Khôi phục giao dịch',
-      `Bạn có muốn khôi phục "${title}"?`,
+      'Tùy chọn',
+      `Chọn hành động cho "${title}"`,
       [
         {
           text: 'Hủy',
@@ -47,19 +48,26 @@ function TrashItem({ transaction, onRestored, onPermanentlyDeleted }: TrashItemP
         },
         {
           text: 'Khôi phục',
-          onPress: async () => {
-            try {
-              restoreTransaction(transaction.id);
-              onRestored();
-              Alert.alert('Thành công', 'Giao dịch đã được khôi phục.');
-            } catch (error) {
-              console.error('Error restoring transaction:', error);
-              Alert.alert('Lỗi', 'Không thể khôi phục giao dịch.');
-            }
-          },
+          onPress: handleRestore,
+        },
+        {
+          text: 'Xóa vĩnh viễn',
+          style: 'destructive',
+          onPress: handlePermanentDelete,
         },
       ]
     );
+  };
+
+  const handleRestore = () => {
+    try {
+      restoreTransaction(transaction.id);
+      onRestored();
+      Alert.alert('Thành công', 'Giao dịch đã được khôi phục.');
+    } catch (error) {
+      console.error('Error restoring transaction:', error);
+      Alert.alert('Lỗi', 'Không thể khôi phục giao dịch.');
+    }
   };
 
   const handlePermanentDelete = () => {
@@ -90,7 +98,7 @@ function TrashItem({ transaction, onRestored, onPermanentlyDeleted }: TrashItemP
   };
 
   return (
-    <View style={styles.trashItem}>
+    <TouchableOpacity style={styles.trashItem} onLongPress={handleLongPress}>
       <View style={styles.itemContent}>
         <View style={styles.leftSection}>
           <View style={[styles.typeIndicator, isIncome ? styles.incomeIndicator : styles.expenseIndicator]}>
@@ -101,6 +109,7 @@ function TrashItem({ transaction, onRestored, onPermanentlyDeleted }: TrashItemP
           <View style={styles.infoSection}>
             <Text style={styles.title} numberOfLines={1}>{title}</Text>
             <Text style={styles.date}>{formatDate(createdAt)}</Text>
+            <Text style={styles.longPressHint}>Chạm lâu để xem tùy chọn</Text>
           </View>
         </View>
         
@@ -113,16 +122,7 @@ function TrashItem({ transaction, onRestored, onPermanentlyDeleted }: TrashItemP
           </Text>
         </View>
       </View>
-
-      <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.restoreButton} onPress={handleRestore}>
-          <Text style={styles.restoreButtonText}>Khôi phục</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton} onPress={handlePermanentDelete}>
-          <Text style={styles.deleteButtonText}>Xóa vĩnh viễn</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -248,8 +248,20 @@ export default function TrashScreen() {
           />
         }
       >
-        {deletedTransactions.length > 0 ? (
-          <View style={styles.transactionsList}>
+        {deletedTransactions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>🗑️</Text>
+            <Text style={styles.emptyText}>
+              {searchTerm ? 'Không tìm thấy giao dịch' : 'Thùng rác trống'}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {searchTerm 
+                ? 'Thử với từ khóa khác' 
+                : 'Các giao dịch đã xóa sẽ xuất hiện ở đây'}
+            </Text>
+          </View>
+        ) : (
+          <>
             {deletedTransactions.map((transaction) => (
               <TrashItem
                 key={transaction.id}
@@ -258,22 +270,7 @@ export default function TrashScreen() {
                 onPermanentlyDeleted={loadData}
               />
             ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🗑️</Text>
-            {searchTerm ? (
-              <>
-                <Text style={styles.emptyText}>Không tìm thấy kết quả</Text>
-                <Text style={styles.emptySubText}>Thử từ khóa khác hoặc xóa bộ lọc</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.emptyText}>Thùng rác trống</Text>
-                <Text style={styles.emptySubText}>Các giao dịch đã xóa sẽ xuất hiện ở đây</Text>
-              </>
-            )}
-          </View>
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -283,60 +280,50 @@ export default function TrashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#795548',
-    paddingVertical: 20,
+    alignItems: 'center',
     paddingHorizontal: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#333',
   },
   clearAllButton: {
-    backgroundColor: '#D32F2F',
+    backgroundColor: '#FF6B6B',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 6,
+    borderRadius: 16,
   },
   clearAllText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   content: {
     flex: 1,
     padding: 20,
   },
-  transactionsList: {
-    gap: 12,
-  },
   trashItem: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     borderLeftWidth: 4,
     borderLeftColor: '#795548',
   },
   itemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
   },
   leftSection: {
     flex: 1,
@@ -380,6 +367,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  longPressHint: {
+    fontSize: 10,
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
   rightSection: {
     alignItems: 'flex-end',
   },
@@ -396,10 +389,10 @@ const styles = StyleSheet.create({
   },
   typeLabel: {
     fontSize: 12,
-    fontWeight: '500',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
+    overflow: 'hidden',
   },
   incomeType: {
     backgroundColor: '#E8F5E8',
@@ -408,34 +401,6 @@ const styles = StyleSheet.create({
   expenseType: {
     backgroundColor: '#FFEBEE',
     color: '#F44336',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  restoreButton: {
-    flex: 1,
-    backgroundColor: '#4CAF50',
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  restoreButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  deleteButton: {
-    flex: 1,
-    backgroundColor: '#F44336',
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   emptyState: {
     flex: 1,
@@ -453,7 +418,7 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 8,
   },
-  emptySubText: {
+  emptySubtext: {
     fontSize: 14,
     color: '#999',
     textAlign: 'center',
